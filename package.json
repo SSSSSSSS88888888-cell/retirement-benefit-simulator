@@ -1,0 +1,9 @@
+{
+  "name": "retirement-benefit-simulator",
+  "version": "1.0.0",
+  "description": "退職金予測シミュレーター - Retirement Benefit Simulator (App #23 of 100 Web Apps Challenge)",
+  "scripts": {
+    "dev": "npx serve public",
+    "start": "npx serve public"
+  }
+}

@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ja" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#F5F5F4">
+<title>退職金予測シミュレーター - 月給×勤続で概算</title>
+<meta name="description" content="月給と勤続年数と退職理由を入れるだけで、退職金の概算額を算出。自己都合/会社都合で係数を調整。">
+<meta property="og:title" content="退職金予測シミュレーター">
+<meta property="og:description" content="今辞めたらいくら？">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F5F5F4; --surface: #FFFFFF; --surface-2: #EFEEEC; --surface-3: #E7E5E4;
+  --border: #D6D3D1; --border-strong: #A8A29E;
+  --text: #0A0A0A; --text-2: #262626; --dim: #57534E; --dim-2: #78716C;
+  --primary: #0A0A0A; --accent: #0A0A0A;
+  --success: #047857; --danger: #B91C1C; --warning: #B45309;
+  --radius-sm: 4px; --radius: 6px; --radius-lg: 10px;
+  --shadow-sm: 0 1px 0 rgba(10,10,10,0.04);
+  --shadow: 0 1px 2px rgba(10,10,10,0.04);
+  --shadow-lg: 0 8px 24px -8px rgba(10,10,10,0.12);
+  --duration: 160ms; --ease: cubic-bezier(0.2, 0, 0, 1);
+  --font-sans: "Inter", "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-num: "JetBrains Mono", "Inter", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --tap: 48px; --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+[data-theme="dark"] {
+  --bg: #0A0A0A; --surface: #141414; --surface-2: #1A1A1A; --surface-3: #222222;
+  --border: #2A2A2A; --border-strong: #3F3F3F;
+  --text: #FAFAFA; --text-2: #E5E5E5; --dim: #A3A3A3; --dim-2: #737373;
+  --primary: #FAFAFA; --accent: #FAFAFA;
+  --success: #34D399; --danger: #F87171; --warning: #FBBF24;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
+html, body {
+  background: var(--bg); color: var(--text);
+  font-family: var(--font-sans); font-size: 15px; line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01", "ss03";
+  letter-spacing: -0.005em; overscroll-behavior-y: none;
+}
+body { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column;
+  padding-top: var(--safe-top); padding-bottom: var(--safe-bottom); }
+button { font-family: inherit; font-size: inherit; cursor: pointer; background: none; border: none; color: inherit; }
+input { font-family: inherit; font-size: inherit; color: inherit; }
+.tnum { font-variant-numeric: tabular-nums; }
+
+.app {
+  flex: 1; display: flex; flex-direction: column;
+  max-width: 540px; width: 100%; margin: 0 auto;
+  padding: clamp(12px, 4vw, 20px) clamp(16px, 5vw, 28px) 48px;
+}
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 0 clamp(24px, 6vw, 40px);
+}
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 13px; color: var(--text); }
+.brand-mark {
+  width: 28px; height: 28px; border-radius: var(--radius-sm);
+  background: var(--text); color: var(--bg);
+  display: grid; place-items: center;
+  font-size: 13px; font-weight: 700; font-family: var(--font-num);
+}
+.brand-meta {
+  font-family: var(--font-mono); font-size: 11px; color: var(--dim);
+  text-transform: uppercase; letter-spacing: 0.06em; margin-left: 2px;
+}
+.icon-btn {
+  width: var(--tap); height: var(--tap); display: grid; place-items: center;
+  border-radius: var(--radius); color: var(--dim);
+  transition: background var(--duration) var(--ease);
+}
+.icon-btn:hover { background: var(--surface-2); color: var(--text); }
+.icon-btn svg { width: 18px; height: 18px; }
+
+.hero { margin-bottom: clamp(28px, 7vw, 40px); }
+.hero-eyebrow {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.12em; color: var(--dim);
+  margin-bottom: 14px; display: inline-flex; align-items: center; gap: 8px;
+}
+.hero-eyebrow::before { content: ""; width: 18px; height: 1px; background: var(--border-strong); }
+.hero h1 {
+  font-size: clamp(28px, 7.5vw, 36px); font-weight: 800;
+  letter-spacing: -0.035em; line-height: 1.05; margin-bottom: 12px; color: var(--text);
+}
+.hero p { font-size: clamp(14px, 3.8vw, 15px); color: var(--dim); max-width: 42ch; line-height: 1.6; }
+
+.field { margin-bottom: 18px; }
+.field-label {
+  display: flex; align-items: baseline; justify-content: space-between;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: var(--dim);
+  margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.08em;
+}
+.field-hint { font-family: var(--font-mono); font-size: 11px; color: var(--dim-2); margin-top: 8px; }
+
+.input-wrap {
+  position: relative; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); transition: border-color var(--duration) var(--ease);
+}
+.input-wrap:focus-within { border-color: var(--text); }
+.input-wrap .prefix {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  color: var(--dim); font-family: var(--font-num); font-weight: 500; pointer-events: none;
+}
+.input-wrap .suffix {
+  position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+  color: var(--dim); font-family: var(--font-mono); font-size: 12px; pointer-events: none;
+}
+.input-wrap input {
+  width: 100%; height: var(--tap); padding: 0 14px 0 32px;
+  border: none; background: transparent; outline: none;
+  font-size: 16px; font-weight: 600;
+  font-family: var(--font-num); font-variant-numeric: tabular-nums;
+}
+.input-wrap.no-prefix input { padding-left: 14px; }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+.reason-tabs {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px;
+}
+.tab {
+  min-height: 56px; padding: 0 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color var(--duration) var(--ease);
+}
+.tab:hover { border-color: var(--border-strong); }
+.tab[aria-pressed="true"] { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
+.tab-title {
+  font-family: var(--font-mono); font-size: 10px; color: var(--dim);
+  text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500;
+}
+.tab-val { font-family: var(--font-sans); font-size: 14px; font-weight: 600; color: var(--text); }
+
+.big-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: clamp(40px, 10vw, 56px) clamp(20px, 6vw, 32px) clamp(32px, 8vw, 44px);
+  text-align: center; margin-bottom: 16px;
+  position: relative; overflow: hidden;
+}
+.big-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--text), transparent); opacity: 0.3;
+}
+.big-eyebrow {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.14em; color: var(--dim); margin-bottom: 14px;
+}
+.big-amount {
+  font-family: var(--font-num); font-size: clamp(40px, 13vw, 60px);
+  font-weight: 800; letter-spacing: -0.04em; line-height: 1;
+  font-variant-numeric: tabular-nums; margin-bottom: 12px; color: var(--text);
+}
+.big-amount .yen {
+  font-size: 0.45em; color: var(--dim); font-weight: 500;
+  margin-right: 0.12em; vertical-align: 0.25em; letter-spacing: 0;
+}
+.big-formula {
+  font-family: var(--font-mono); font-size: 11px; color: var(--dim);
+  letter-spacing: 0.04em; line-height: 1.6; margin-bottom: 10px;
+}
+.big-note {
+  font-family: var(--font-mono); font-size: 10px; color: var(--dim-2);
+  letter-spacing: 0.04em;
+}
+
+.stats-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 16px;
+}
+.stat {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px 14px;
+}
+.stat-label {
+  font-family: var(--font-mono); font-size: 9px; color: var(--dim);
+  margin-bottom: 6px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.stat-val {
+  font-family: var(--font-num); font-size: 16px; font-weight: 700;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.02em; color: var(--text);
+}
+.stat-val .yen-s { font-size: 11px; color: var(--dim); margin-right: 1px; font-family: var(--font-mono); font-weight: 400; }
+.stat-val .unit { font-size: 11px; color: var(--dim); margin-left: 2px; font-weight: 500; }
+
+.table-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 16px; overflow: hidden;
+}
+.table-head {
+  padding: 10px 16px; font-family: var(--font-mono); font-size: 10px;
+  color: var(--dim); text-transform: uppercase; letter-spacing: 0.1em;
+  border-bottom: 1px solid var(--border); background: var(--surface-2); font-weight: 500;
+}
+.table-row {
+  display: grid; grid-template-columns: 80px 1fr 1fr; align-items: center;
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+}
+.table-row:last-child { border-bottom: none; }
+.table-years {
+  font-family: var(--font-mono); font-size: 11px; color: var(--dim);
+  letter-spacing: 0.04em;
+}
+.table-val {
+  font-family: var(--font-num); font-size: 14px; font-weight: 600;
+  color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+  text-align: right;
+}
+.table-val.dim { color: var(--dim-2); }
+.table-val .yen-s { font-size: 11px; color: var(--dim); margin-right: 1px; font-family: var(--font-mono); font-weight: 400; }
+
+.btn {
+  width: 100%; min-height: 52px; padding: 0 20px;
+  border-radius: var(--radius); font-size: 15px; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  transition: background var(--duration) var(--ease), border-color var(--duration) var(--ease), transform 80ms var(--ease);
+  user-select: none; -webkit-tap-highlight-color: transparent;
+  font-family: var(--font-sans);
+}
+.btn:active { transform: scale(0.985); }
+.btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--surface-2); border-color: var(--border-strong); }
+.btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.footer {
+  margin-top: auto; padding-top: 40px;
+  font-family: var(--font-mono); font-size: 10px; color: var(--dim-2);
+  text-align: center; text-transform: uppercase; letter-spacing: 0.1em;
+}
+.footer a { color: var(--dim); text-decoration: none; }
+
+.toast {
+  position: fixed; bottom: calc(20px + var(--safe-bottom)); left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--text); color: var(--bg);
+  padding: 12px 18px; border-radius: var(--radius);
+  font-size: 13px; font-weight: 500; box-shadow: var(--shadow-lg);
+  opacity: 0; transition: opacity 220ms var(--ease), transform 220ms var(--ease);
+  z-index: 100; pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 768px) { .app { max-width: 100%; } }
+@media (max-width: 480px) {
+  :root { --tap: 52px; }
+  body { font-size: 14px; }
+  .app { padding: 12px 16px 40px; }
+  .hero h1 { font-size: clamp(24px, 8vw, 30px); }
+  .big-card { padding: 32px 16px 28px; }
+  .big-amount { font-size: clamp(36px, 12vw, 50px); }
+  .btn { min-height: 54px; font-size: 14.5px; padding: 0 16px; }
+  .footer { padding-top: 32px; font-size: 9px; }
+  .table-row { grid-template-columns: 64px 1fr 1fr; padding: 10px 14px; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0.01ms !important; } }
+@media (hover: none) {
+  .btn-secondary:hover { background: var(--surface); border-color: var(--border); }
+  .tab:hover { border-color: var(--border); }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">退</div>
+      <span>Retirement</span>
+      <span class="brand-meta">v1.0</span>
+    </div>
+    <button class="icon-btn" id="themeToggle" aria-label="テーマ切替">
+      <svg id="iconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      <svg id="iconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" hidden><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </header>
+
+  <div class="hero">
+    <div class="hero-eyebrow">Simulation · 自社モデル係数</div>
+    <h1>今辞めたら、<br>退職金いくら？</h1>
+    <p>月給・勤続年数・退職理由を入れると、自社モデル係数に基づく退職金の概算を表示します。税引き後目安も表示。</p>
+  </div>
+
+  <div class="two-col">
+    <div class="field">
+      <label class="field-label"><span>月給（基本給）</span></label>
+      <div class="input-wrap">
+        <span class="prefix">¥</span>
+        <input type="number" id="salaryInput" value="300000" min="0" max="9999999" inputmode="numeric" aria-label="月給">
+      </div>
+    </div>
+    <div class="field">
+      <label class="field-label"><span>勤続年数</span></label>
+      <div class="input-wrap">
+        <input type="number" id="yearsInput" value="10" min="1" max="50" inputmode="numeric" aria-label="勤続年数" style="padding-left:14px;padding-right:34px;">
+        <span class="suffix">年</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="field-label"><span>退職理由</span></label>
+    <div class="reason-tabs">
+      <button type="button" class="tab reason-tab" data-reason="self" aria-pressed="true">
+        <span class="tab-title">自己都合</span>
+        <span class="tab-val">係数 × 0.8</span>
+      </button>
+      <button type="button" class="tab reason-tab" data-reason="company">
+        <span class="tab-title">会社都合</span>
+        <span class="tab-val">係数 × 1.0</span>
+      </button>
+    </div>
+    <p class="field-hint">自己都合は係数の80%、会社都合は満額で計算（自社モデル方式）</p>
+  </div>
+
+  <div class="big-card">
+    <div class="big-eyebrow">退職金概算（支給額）</div>
+    <div class="big-amount tnum"><span class="yen">¥</span><span id="totalVal">0</span></div>
+    <div class="big-formula" id="formula">月給 ¥0 × 支給係数 0.0 × 自己都合調整 0.8</div>
+    <div class="big-note">※ 自社モデル方式の目安。退職所得控除・税引き後は下記参照</div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat">
+      <div class="stat-label">税引き後目安</div>
+      <div class="stat-val tnum"><span class="yen-s">¥</span><span id="netVal">0</span></div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">退職所得控除</div>
+      <div class="stat-val tnum"><span class="yen-s">¥</span><span id="deductVal">0</span></div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">支給係数</div>
+      <div class="stat-val tnum"><span id="coefVal">0.0</span></div>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <div class="table-head">勤続年数別の概算（会社都合ベース）</div>
+    <div id="tableBody"></div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-secondary" id="shareBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      Xでシェア
+    </button>
+    <button class="btn btn-secondary" id="copyBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      コピー
+    </button>
+  </div>
+
+  <footer class="footer">
+    <a href="https://x.com/otsu_dev" target="_blank" rel="noopener">100 Web Apps Challenge · #23</a>
+  </footer>
+</div>
+
+<div class="toast" id="toast">コピーしました</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // 支給係数テーブル（自社モデル方式・大卒一般職の目安）
+  // 年数 → 係数（月給の何ヶ月分か）
+  const coefTable = [
+    { y: 1, c: 0.5 },
+    { y: 3, c: 2.5 },
+    { y: 5, c: 4.5 },
+    { y: 10, c: 11 },
+    { y: 15, c: 18 },
+    { y: 20, c: 28 },
+    { y: 25, c: 40 },
+    { y: 30, c: 54 },
+    { y: 35, c: 68 },
+    { y: 40, c: 80 },
+  ];
+
+  function coefFor(years) {
+    // 線形補間
+    if (years <= coefTable[0].y) return coefTable[0].c * (years / coefTable[0].y);
+    if (years >= coefTable[coefTable.length-1].y) return coefTable[coefTable.length-1].c;
+    for (let i = 0; i < coefTable.length - 1; i++) {
+      if (years >= coefTable[i].y && years <= coefTable[i+1].y) {
+        const t = (years - coefTable[i].y) / (coefTable[i+1].y - coefTable[i].y);
+        return coefTable[i].c + t * (coefTable[i+1].c - coefTable[i].c);
+      }
+    }
+    return 0;
+  }
+
+  function selfReduction(reason) {
+    return reason === 'self' ? 0.8 : 1.0;
+  }
+
+  // 退職所得控除：20年以下は40万×年（最低80万）、20年超は800万＋70万×(年-20)
+  function retireDeduction(years) {
+    if (years <= 20) return Math.max(800000, 400000 * years);
+    return 8000000 + 700000 * (years - 20);
+  }
+
+  // 課税退職所得 = (支給額 - 控除) × 1/2
+  // 所得税＋住民税 ざっくり 20%（多めに見て目安）
+  function afterTax(gross, years) {
+    const deduction = retireDeduction(years);
+    const taxable = Math.max(0, (gross - deduction) * 0.5);
+    const tax = taxable * 0.2; // 概算
+    return gross - tax;
+  }
+
+  const state = { salary: 300000, years: 10, reason: 'self' };
+
+  const $ = (id) => document.getElementById(id);
+  const salaryInput = $('salaryInput');
+  const yearsInput = $('yearsInput');
+  const reasonTabs = document.querySelectorAll('.reason-tab');
+  const totalVal = $('totalVal');
+  const formulaEl = $('formula');
+  const netVal = $('netVal');
+  const deductVal = $('deductVal');
+  const coefVal = $('coefVal');
+  const tableBody = $('tableBody');
+  const toast = $('toast');
+
+  const fmt = (n) => Math.floor(n).toLocaleString('ja-JP');
+  const showToast = (msg) => {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => toast.classList.remove('show'), 1800);
+  };
+
+  // Theme
+  const applyTheme = (t) => {
+    document.documentElement.setAttribute('data-theme', t);
+    $('iconSun').hidden = t === 'dark';
+    $('iconMoon').hidden = t !== 'dark';
+    document.querySelector('meta[name="theme-color"]').setAttribute('content', t === 'dark' ? '#0A0A0A' : '#F5F5F4');
+  };
+  const savedTheme = localStorage.getItem('rbs-theme') ||
+    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  applyTheme(savedTheme);
+  $('themeToggle').addEventListener('click', () => {
+    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('rbs-theme', next);
+    applyTheme(next);
+  });
+
+  // Inputs
+  [salaryInput, yearsInput].forEach(el => el.addEventListener('input', update));
+  reasonTabs.forEach(btn => {
+    btn.addEventListener('click', () => {
+      reasonTabs.forEach(b => b.setAttribute('aria-pressed', 'false'));
+      btn.setAttribute('aria-pressed', 'true');
+      state.reason = btn.dataset.reason;
+      update();
+    });
+  });
+
+  // Restore
+  const saved = (() => { try { return JSON.parse(localStorage.getItem('rbs-settings') || '{}'); } catch { return {}; } })();
+  if (saved.salary != null) salaryInput.value = saved.salary;
+  if (saved.years != null) yearsInput.value = saved.years;
+  if (saved.reason) {
+    state.reason = saved.reason;
+    reasonTabs.forEach(b => b.setAttribute('aria-pressed', b.dataset.reason === saved.reason ? 'true' : 'false'));
+  }
+
+  function update() {
+    state.salary = Math.max(0, Number(salaryInput.value) || 0);
+    state.years = Math.max(1, Math.min(50, Number(yearsInput.value) || 1));
+    try {
+      localStorage.setItem('rbs-settings', JSON.stringify(state));
+    } catch {}
+
+    const coef = coefFor(state.years);
+    const adj = selfReduction(state.reason);
+    const gross = state.salary * coef * adj;
+    const deduction = retireDeduction(state.years);
+    const net = afterTax(gross, state.years);
+
+    totalVal.textContent = fmt(gross);
+    formulaEl.textContent = `月給 ¥${fmt(state.salary)} × 支給係数 ${coef.toFixed(1)} × ${state.reason === 'self' ? '自己都合0.8' : '会社都合1.0'}`;
+    netVal.textContent = fmt(net);
+    deductVal.textContent = fmt(deduction);
+    coefVal.textContent = coef.toFixed(1);
+
+    renderTable();
+  }
+
+  function renderTable() {
+    const years = [5, 10, 15, 20, 25, 30, 35, 40];
+    tableBody.innerHTML = years.map(y => {
+      const coef = coefFor(y);
+      const gross = state.salary * coef;
+      const selfGross = gross * 0.8;
+      return `<div class="table-row">
+        <span class="table-years">${y}年</span>
+        <span class="table-val"><span class="yen-s">¥</span>${fmt(gross)}</span>
+        <span class="table-val dim"><span class="yen-s">¥</span>${fmt(selfGross)}</span>
+      </div>`;
+    }).join('');
+    // ヘッダー的に2カラム目のラベルを入れる
+    const legend = `<div class="table-row" style="background:var(--surface-2);border-bottom:1px solid var(--border);">
+      <span class="table-years">年数</span>
+      <span class="table-val" style="font-size:10px;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase;font-family:var(--font-mono);font-weight:500;">会社都合</span>
+      <span class="table-val dim" style="font-size:10px;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase;font-family:var(--font-mono);font-weight:500;">自己都合</span>
+    </div>`;
+    tableBody.innerHTML = legend + tableBody.innerHTML;
+  }
+
+  update();
+
+  // Share
+  const buildShareText = () => {
+    const coef = coefFor(state.years);
+    const adj = selfReduction(state.reason);
+    const gross = state.salary * coef * adj;
+    const reasonLabel = state.reason === 'self' ? '自己都合' : '会社都合';
+    return `勤続${state.years}年／月給¥${fmt(state.salary)}／${reasonLabel}なら、退職金の概算は ¥${fmt(gross)}。\n\n#退職金予測シミュレーター`;
+  };
+  $('shareBtn').addEventListener('click', () => {
+    const text = buildShareText();
+    window.open(`https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(location.origin)}`, '_blank', 'noopener');
+  });
+  $('copyBtn').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(buildShareText() + '\n' + location.origin);
+      showToast('コピーしました');
+    } catch { showToast('コピー失敗'); }
+  });
+})();
+</script>
+</body>
+</html>
